@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import string
-from deampy.in_out_functions import read_csv_rows
-from deampy.plots.plot_support import output_figure
-from deampy.statistics import SummaryStat
+from SimPy.InOutFunctions import read_csv_rows
+from SimPy.Plots.FigSupport import output_figure
+from SimPy.Statistics import SummaryStat
 
 from definitions import ROOT_DIR, get_dataset_labels, get_short_outcome
 
@@ -43,7 +43,7 @@ def add_performance_for_outcome(axes, short_outcome, panel_labels, show_x_label,
 
     # find the file name
     label = get_dataset_labels(
-        week=None, survey_size=noise_coeff, bias_delay=bias_delay)
+        week=None, noise_coeff=noise_coeff, bias_delay=bias_delay)
 
     # read data
     data = read_csv_rows(
@@ -132,7 +132,7 @@ def plot_performance(noise_coeff=None, bias_delay=None, fig_size=None):
 
     # Save the figure and show
     label = get_dataset_labels(
-        week=None, survey_size=noise_coeff, bias_delay=bias_delay)
+        week=None, noise_coeff=noise_coeff, bias_delay=bias_delay)
     fig.tight_layout()
     output_figure(plt=fig,
                   filename=ROOT_DIR + '/outputs/figures/prediction/neu_net/performance{}.png'

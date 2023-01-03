@@ -1,49 +1,28 @@
 import os
 from enum import Enum
 
-DIGITS = 3
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# calibration settings
-FEASIBILITY_PERIOD = 1.75  # years (from Mar-1, 2020 to Dec-1) -> week 91
-CALIB_PERIOD = 2  # years (simulation duration during calibration)
-N_SIM_CALIBRATION = 150*50  # number of simulated trajectories used for calibration
+FEASIBILITY_PERIOD = 1.5 # year (from Mar-1, 2020 to Aug-31, 2021 which is 1.5 years)
+CALIB_PERIOD = 2  #
+PROJ_PERIOD = 0.25  # year (from Sep-1, 2021 to May-31, 2022 which is 0.75 year)
+SIM_DURATION = CALIB_PERIOD + PROJ_PERIOD
 
-SIM_DURATION = 2.25  # years (until Jun-1, 2022)
-
-# to build datasets for developing predictive models
-FIRST_WEEK_OF_PREDICTION_PERIOD = 96  # for example, 96 is the first week of winter
-WEEKS_TO_PREDICT = 8
-HOSP_OCCU_THRESHOLDS = (10, 15, 20)  # per 100,000 population
-
-# number of simulation runs used for training and validation
-N_SIM_TRAINING = 20*50
-N_SIM_VALIDATION = 5*50
-CV_FOLD = 10         # num of splits for cross validation
-FILL_TREE = True
-
-SCENARIOS = {
-    'base': 'base',
-    'no control measure': 'no control measure',
-    'no novel variant': 'no novel variant',
-    'smaller survey': 'smaller survey'
-}
-
-# survey sizes
-N_NOVEL_INCD = 1521
-SMALLER_N_NOVEL_INCD = 250
-
-# ------------------------------------------------------------------------------------
-# ---- Other support variables, classes, and functions that should not be changed ----
-# ------------------------------------------------------------------------------------
-
-# columns in datasets
 HOSP_OCCUPANCY_IN_TRAJ_FILE = 'Obs: Hospital occupancy rate'
-OUTCOME_NAME_IN_DATASET = 'If threshold passed (0:Yes)'
+OUTCOMES_IN_DATASET = ['Maximum rate of hospital occupancy',
+                       'If threshold passed (0:Yes)']
+
 
 AGES = ['0-4yrs', '5-12yrs', '13-17yrs', '18-29yrs', '30-49yrs', '50-64yrs', '65-74yrs', '75+yrs']
-VARIANTS = ['Orig', 'Delta', 'Novel']
-VACC_STATUS = ['UnVacc', 'Vacc']
+PROFILES = ['Dominant-UV', 'Novel-UV',
+            'Dominant-V', 'Novel-V']
+
+
+class Profiles(Enum):
+    DOM_UNVAC = 0   # infected with dominant strain
+    NOV_UNVAC = 1   # infected with novel strain
+    DOM_VAC = 2  # vaccinated and infected with dominant strain
+    NOV_VAC = 3   # vaccinated and infected with novel strain
 
 
 class AgeGroups(Enum):
@@ -57,54 +36,37 @@ class AgeGroups(Enum):
     Age_75_ = 7
 
 
-class Variants(Enum):
-    ORIGINAL = 0
-    DELTA = 1
-    NOVEL = 2
+class AgeGroupsProfiles:
+    # to convert (age group index, profile index) to an index and vice versa
 
-
-class ProfileDefiner:
-    """ to convert (age group index, variant index, vaccination status index) to an index and vice versa """
-
-    def __init__(self, n_age_groups, n_variants, n_vacc_status):
+    def __init__(self, n_age_groups, n_profiles):
         self.nAgeGroups = n_age_groups
-        self.nVariants = n_variants
-        self.nVaccStatus = n_vacc_status
-        self.nProfiles = self.nVariants * self.nVaccStatus
-        self.length = n_age_groups * n_variants * n_vacc_status
+        self.nProfiles = n_profiles
+        self.length = n_age_groups * n_profiles
 
-        self.strAge = [None] * self.nAgeGroups
-        self.strVariant = [None] * self.nVariants
-        self.strProfile = [[None] * self.nVaccStatus for v in range(self.nVariants)]
-        self.strAgeVariant = [[None] * self.nVariants for a in range(self.nAgeGroups)]
-        self.strAgeProfile = [
-            [[None] * self.nVaccStatus for v in range(self.nVariants)] for a in range(self.nAgeGroups)]
+    def get_row_index(self, age_group, profile):
+        return self.nProfiles * age_group + profile
 
-        for v in range(self.nVariants):
-            self.strVariant[v] = VARIANTS[v]
-            for vs in range(self.nVaccStatus):
-                self.strProfile[v][vs] = VARIANTS[v] + '-' + VACC_STATUS[vs]
+    def get_age_group_and_profile(self, i):
+        return int(i/self.nProfiles), i % self.nAgeGroups
 
-        for a in range(self.nAgeGroups):
-            self.strAge[a] = AGES[a]
-            for v in range(self.nVariants):
-                self.strAgeVariant[a][v] = AGES[a] + '-' + VARIANTS[v]
-                for vs in range(self.nVaccStatus):
-                    self.strAgeProfile[a][v][vs] = AGES[a] + '-' + VARIANTS[v] + '-' + VACC_STATUS[vs]
+    def get_str_age_profile(self, age_group, profile):
 
-    def get_row_index(self, age_group, variant, vacc_status):
-        return self.nVariants * self.nVaccStatus * age_group + self.nVaccStatus * variant + vacc_status
+        return AGES[age_group] + '-' + PROFILES[profile]
 
-    def get_profile_index(self, variant, vacc_status):
-        return self.nVaccStatus * variant + vacc_status
+    def get_str_age(self, age_group):
+        return AGES[age_group]
+
+    def get_str_profile(self, profile):
+        return PROFILES[profile]
 
 
-def get_dataset_labels(week, survey_size=None, bias_delay=None):
+def get_dataset_labels(week, noise_coeff, bias_delay):
 
-    if bias_delay is not None and survey_size is not None:
-        label = ' sample size {} and bias {}'.format(survey_size, bias_delay)
-    elif survey_size is not None:
-        label = ' sample size {}'.format(survey_size)
+    if bias_delay is not None and noise_coeff is not None:
+        label = ' with noise {} and bias {}'.format(noise_coeff, bias_delay)
+    elif noise_coeff is not None:
+        label = ' with noise {}'.format(noise_coeff)
     else:
         label = ''
 
@@ -122,8 +84,3 @@ def get_short_outcome(outcome):
         return 'prob'
     else:
         raise ValueError('Invalid outcome to predict.')
-
-
-def get_outcome_label(threshold):
-
-    return OUTCOME_NAME_IN_DATASET + ' {}'.format(threshold)

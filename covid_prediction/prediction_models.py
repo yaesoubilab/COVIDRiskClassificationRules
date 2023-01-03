@@ -1,9 +1,8 @@
-import deampy.statistics as Stat
+import SimPy.Statistics as Stat
 import matplotlib.pyplot as plt
 import numpy as np
 import pydotplus
-import warnings
-from deampy.in_out_functions import make_directory
+from SimPy.InOutFunctions import make_directory
 from sklearn import linear_model
 from sklearn.metrics import confusion_matrix, roc_curve, auc, r2_score, mean_squared_error, accuracy_score
 from sklearn.model_selection import train_test_split, cross_val_predict, cross_val_score
@@ -21,8 +20,7 @@ class Classifier:
         self.X = np.asarray(self.df[self.features])
         self.y = np.asarray(self.df[self.yName])
 
-        self.performanceSummary = None  # performance summary on the test set
-        self.validationPerformanceSummaries = []  # list of performance summaries on validation sets
+        self.performanceTest = None  # performance summary on the test set
 
 
 class ClassifierPerformance:
@@ -36,15 +34,9 @@ class ClassifierPerformance:
         self.yTest = y_test
         self.yTestHatProb = y_test_hat_prob
 
-        try:
-            tn, fp, fn, tp = confusion_matrix(y_true=y_test, y_pred=y_test_hat).ravel()
-            self.sen = tp / (tp + fn)
-            self.spe = tn / (tn + fp)
-        except ValueError:
-            warnings.warn('\nSensitivity and specificity cannot be calculated.')
-            self.sen = None
-            self.spe = None
-
+        tn, fp, fn, tp = confusion_matrix(y_true=y_test, y_pred=y_test_hat).ravel()
+        self.sen = tp / (tp + fn)
+        self.spe = tn / (tn + fp)
         self.accuracy = accuracy_score(y_test, y_test_hat)
 
         self.roc_auc = None
@@ -86,21 +78,28 @@ class DecisionTree(Classifier):
         self.model = None
         self.selectedFeatures = None
 
-    def train(self, criterion="gini", max_depth=None, ccp_alpha=0, test_size=0.2):
+    def run(self, criterion="gini", max_depth=None, ccp_alpha=0, test_size=0.2, df_validation=None):
         """ train the decision tree and store the summary of performance """
 
         X = np.asarray(self.df[self.features])
         y = np.asarray(self.df[self.yName])
 
-        # split train vs. test set
-        x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=1)
+        # if dataframe for validation is provided
+        if df_validation is not None:
+            x_train = X
+            y_train = y
+            x_test = np.asarray(df_validation[self.features])
+            y_test = np.asarray(df_validation[self.yName])
+        else:
+            # split train vs. test set
+            x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=1)
 
         # fit model
         self.model = DecisionTreeClassifier(
             criterion=criterion, max_depth=max_depth, ccp_alpha=ccp_alpha, random_state=0)
         self.model.fit(X=x_train, y=y_train)
 
-        # get important features
+        # get selected features
         self.selectedFeatures = []
         for i, v in enumerate(self.model.feature_importances_):
             if v > 0:
@@ -110,31 +109,10 @@ class DecisionTree(Classifier):
         y_test_hat = self.model.predict(x_test)
 
         # update model performance attributes
-        self.performanceSummary = ClassifierPerformance(y_test=y_test, y_test_hat=y_test_hat)
-
-    def validate(self, validation_dfs):
-        """
-        :param validation_dfs: (list of panda.DataFrame) the validation sets
-        """
-
-        if not isinstance(validation_dfs, list):
-            validation_dfs = [validation_dfs]
-
-        for df in validation_dfs:
-            # validation dataset
-            x_test = np.asarray(df[self.features])
-            y_test = np.asarray(df[self.yName])
-
-            # prediction
-            y_test_hat = self.model.predict(x_test)
-
-            # update model performance attributes
-            self.validationPerformanceSummaries.append(
-                ClassifierPerformance(y_test=y_test, y_test_hat=y_test_hat))
+        self.performanceTest = ClassifierPerformance(y_test=y_test, y_test_hat=y_test_hat)
 
     def plot_decision_path(self, file_name, simple=True, class_names=None, proportion=True,
-                           impurity=False, label=None, precision=3, shorten_feature_names=None,
-                           filled=True):
+                           impurity=False, label=None, precision=3, shorten_feature_names=None):
         """
         plot the decision path
         :param file_name: (string) filename to save the tree as
@@ -151,7 +129,6 @@ class DecisionTree(Classifier):
             in the values of impurity, threshold and value attributes of each node.
         :param shorten_feature_names: (dictionary) with keys as features names in the dataset and
             values as alternative names to replace the original names with
-        :param filled: (bool) if fill the leaves
         """
 
         # turn of labels and impurity if simple decision tree should be shown
@@ -163,7 +140,7 @@ class DecisionTree(Classifier):
         dot_data = export_graphviz(self.model,
                                    out_file=None, feature_names=self.features, class_names=class_names,
                                    proportion=proportion, impurity=impurity, label=label,
-                                   filled=filled, rounded=True, special_characters=True, precision=precision)
+                                   filled=True, rounded=True, special_characters=True, precision=precision)
         graph = pydotplus.graph_from_dot_data(dot_data)
 
         # replace the feature names with the alternative names provided
@@ -260,7 +237,7 @@ class MultiDecisionTrees(MultiClassifiers):
         model = DecisionTree(df=self.df, feature_names=self.features, y_name=self.y_name)
 
         while len(performance_test_list) < num_bootstraps:
-            model.train(test_size=test_size, save_decision_path_filename=False)
+            model.run(test_size=test_size, save_decision_path_filename=False)
             # append performance
             performance_test_list.append(model.performanceTest)
 

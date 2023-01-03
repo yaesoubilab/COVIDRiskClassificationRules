@@ -1,12 +1,12 @@
 
 SHORT_FEATURE_NAMES = {
-    'Obs: Hospital occupancy rate': 'H',
-    'Obs: New hospitalization rate-slope-4wk': 'dA',
-    'Obs: New hospitalization rate-ave-2wk': 'A',
-    'Obs: Cumulative hospitalization rate': 'sA',
-    'Obs: Cumulative vaccination rate': 'sV',
-    'Obs: % of incidence due to Novel-ave-2wk': 'N',
-    'Obs: % of incidence due to Novel-slope-4wk': 'dN'
+    'Obs: Hospital occupancy rate': 'inHosp',
+    'Obs: New hospitalization rate-slope-4wk': 'dHosp',
+    'Obs: New hospitalization rate-ave-2wk': 'Hosp',
+    'Obs: Cumulative hospitalization rate': 'sumHosp',
+    'Obs: Cumulative vaccination rate': 'Vacc',
+    'Obs: % of incidence due to novel variant-ave-2wk': 'Novel',
+    'Obs: % of incidence due to novel variant-slope-4wk': 'dNovel'
 }
 
 
@@ -121,8 +121,98 @@ B = ModelSpec(name='B',
                   'Obs: New hospitalization rate-slope-4wk',
                   # 'Obs: Cumulative hospitalization rate',
                   'Obs: Cumulative vaccination rate',
-                  'Obs: % of incidence due to Novel-ave-2wk',
-                  'Obs: % of incidence due to Novel-slope-4wk'
+                  'Obs: % of incidence due to novel variant-ave-2wk',
+                  'Obs: % of incidence due to novel variant-slope-4wk'
               ],
               list_num_of_features_wanted=[5, 6],
               list_num_of_neurons=[7, 8])
+
+B1 = ModelSpec(name='B1',
+               features=[
+                   'Obs: New hospitalization rate-ave-2wk',
+                   'Obs: New hospitalization rate-slope-4wk',
+                   'Obs: Cumulative hospitalization rate',
+                   'Obs: Cumulative vaccination rate',
+                   'Obs: Prevalence susceptible'
+               ],
+               list_num_of_features_wanted=[4, 5],
+               list_num_of_neurons=[6, 7])
+
+B2 = ModelSpec(name='B2',
+               features=[
+                   'Obs: New hospitalization rate-ave-2wk',
+                   'Obs: New hospitalization rate-slope-4wk',
+                   'Obs: Cumulative hospitalization rate',
+                   'Obs: Cumulative vaccination rate',
+                   'Obs: % of new hospitalizations that are vaccinated-ave-2wk',
+                   'Obs: % of new hospitalizations that are vaccinated-slope-4wk',
+               ],
+               list_num_of_features_wanted=[5, 6],
+               list_num_of_neurons=[7, 8])
+
+B3 = ModelSpec(name='B3',
+               features=[
+                   'Obs: Hospital occupancy rate',
+                   'Obs: New hospitalization rate-ave-2wk',
+                   'Obs: New hospitalization rate-slope-4wk',
+                   # 'Obs: Cumulative hospitalization rate',
+                   'Obs: Cumulative vaccination rate',
+                   'Obs: % of incidence due to novel variant-ave-2wk',
+                   'Obs: % of incidence due to novel variant-slope-4wk'
+               ],
+               list_num_of_features_wanted=[5, 6],
+               list_num_of_neurons=[7, 8])
+
+B4 = ModelSpec(name='B4',
+               features=[
+                   'Obs: New hospitalization rate-ave-2wk',
+                   'Obs: New hospitalization rate-slope-4wk',
+                   'Obs: Cumulative hospitalization rate',
+                   'Obs: Cumulative vaccination rate',
+                   'Obs: % of new hospitalizations due to novel variant-ave-2wk',
+                   'Obs: % of new hospitalizations due to novel variant-slope-4wk'
+               ],
+               list_num_of_features_wanted=[5, 6],
+               list_num_of_neurons=[7, 8])
+
+C1 = ModelSpec(name='C1',
+               features=[
+                   'Obs: New hospitalization rate-ave-2wk',
+                   'Obs: New hospitalization rate-slope-4wk',
+                   'Obs: Cumulative hospitalization rate',
+                   'Obs: Cumulative vaccination rate',
+                   'Obs: % of incidence due to novel variant-ave-2wk',
+                   'Obs: % of incidence due to novel variant-slope-4wk',
+                   'Obs: % of new hospitalizations that are vaccinated-ave-2wk',
+                   'Obs: % of new hospitalizations that are vaccinated-slope-4wk',
+               ],
+               list_num_of_features_wanted=[6, 7, 8],
+               list_num_of_neurons=[8, 9, 10])
+
+C2 = ModelSpec(name='C2',
+               features=[
+                   'Obs: New hospitalization rate-ave-2wk',
+                   'Obs: New hospitalization rate-slope-4wk',
+                   'Obs: Cumulative hospitalization rate',
+                   'Obs: Cumulative vaccination rate',
+                   'Obs: % of new hospitalizations due to novel variant-ave-2wk',
+                   'Obs: % of new hospitalizations due to novel variant-slope-4wk',
+                   'Obs: % of new hospitalizations due to Novel-V-ave-2wk',
+                   'Obs: % of new hospitalizations due to Novel-V-slope-4wk',
+                ],
+               list_num_of_features_wanted=[6, 7, 8],
+               list_num_of_neurons=[8, 9, 10])
+
+C3 = ModelSpec(name='C2',
+               features=[
+                   'Obs: New hospitalization rate-ave-2wk',
+                   'Obs: New hospitalization rate-slope-4wk',
+                   'Obs: Cumulative hospitalization rate',
+                   'Obs: Cumulative vaccination rate',
+                   'Obs: % of new hospitalizations due to novel variant-ave-2wk',
+                   'Obs: % of new hospitalizations due to novel variant-slope-4wk',
+                   'Obs: % of new hospitalizations due to Novel-V-ave-2wk',
+                   'Obs: % of new hospitalizations due to Novel-V-slope-4wk',
+                ],
+               list_num_of_features_wanted=[6, 7, 8],
+               list_num_of_neurons=[8, 9, 10])

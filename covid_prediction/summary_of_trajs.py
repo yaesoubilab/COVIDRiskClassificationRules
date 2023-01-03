@@ -1,5 +1,5 @@
-import apacepy.analysis.trajectories as T
-from deampy.statistics import SummaryStat
+import apace.analysis.Trajectories as T
+from SimPy.Statistics import SummaryStat
 
 from definitions import FEASIBILITY_PERIOD, SIM_DURATION, ROOT_DIR
 
@@ -47,7 +47,7 @@ def report_traj_summary(hosp_occ_thresholds, perc_novel_thresholds):
         outcome_name='Obs: Cumulative vaccination rate')
     perc_novel_all_trajs = get_trajs_over_training_period(
         sim_trajs=sim_trajs,
-        outcome_name='Obs: % of incidence due to Novel')
+        outcome_name='Obs: % of incidence due to novel variant')
 
     # list of desired statistics
     list_n_with_hosp_occ_passing_threshold = [0] * len(hosp_occ_thresholds)
@@ -100,7 +100,7 @@ def report_traj_summary(hosp_occ_thresholds, perc_novel_thresholds):
             max_immunity = maximum
 
     # report summaries
-    print('---- summary of simulated trajectories ----')
+    print('----')
     for i, t in enumerate(hosp_occ_thresholds):
         print('% trajectories passing the hospital occupancy threshold {}: '.format(t),
               round(100 * list_n_with_hosp_occ_passing_threshold[i] / len(hosp_occ_all_trajs), 1))
@@ -108,6 +108,7 @@ def report_traj_summary(hosp_occ_thresholds, perc_novel_thresholds):
         print('% trajectories passing the novel variant threshold {}: '.format(t),
               round(100 * list_n_with_perc_novel_passing_threshold[i] / len(perc_novel_all_trajs), 1))
 
+    print('----')
     print_stat_summary(name='Max rate of hospital occupancy (mean, PI): ',
                        obss=list_of_max_hosp_occ, multiplier=100000)
     print_stat_summary(name='Max rate of new hospitalizations (mean, PI): ',
@@ -117,7 +118,7 @@ def report_traj_summary(hosp_occ_thresholds, perc_novel_thresholds):
     print_stat_summary(name='Cumulative vaccinations (mean, PI): ',
                        obss=list_of_cum_vacc, multiplier=100)
     print('Range of immunity from infection: [{:.1%}, {:.1%}]'.format(min_immunity, max_immunity))
-    print('')
+    print('----')
 
 
 if __name__ == '__main__':

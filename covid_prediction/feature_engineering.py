@@ -1,25 +1,21 @@
 import numpy as np
 import os
 import pandas as pd
-from deampy.in_out_functions import write_csv
+from SimPy.InOutFunctions import write_csv
 from math import sqrt
 from numpy.random import RandomState
 from pathlib import Path
 from scipy.stats import pearsonr
 
-from definitions import HOSP_OCCUPANCY_IN_TRAJ_FILE, OUTCOME_NAME_IN_DATASET, get_outcome_label
+from definitions import HOSP_OCCUPANCY_IN_TRAJ_FILE, OUTCOMES_IN_DATASET
 
 
 class ErrorModel:
 
-    def __init__(self, survey_size=None, weeks_delay=0):
-        """
-        :param survey_size: (int) sample size 
-        :param weeks_delay: (int) weeks of delay
-        """
+    def __init__(self, survey_size=None, bias_delay=None):
 
         self.surveySize = survey_size
-        self.weeksDelay = weeks_delay
+        self.biasDelay = bias_delay
         self.rnd = RandomState(1)
 
     def get_obs(self, true_values):
@@ -28,21 +24,22 @@ class ErrorModel:
         :return: observed value (with noise and bias added)
         """
 
-        # which true value to use
-        y = None
-        if self.weeksDelay > 0:
-            # the value with delay
-            if len(true_values) > self.weeksDelay:
-                y = true_values[-self.weeksDelay-1]
-        else:
-            # last true value
-            y = true_values[-1]
+        bias = 0
+        noise = 0
 
-        if y is not None:
-            noise = self.get_noise(true_value=y, n=self.surveySize)
-            return min(max(y + noise, 0), 1)
+        # bias
+        if self.biasDelay is not None:
+            # if enough observations are accumulated
+            if len(true_values) >= self.biasDelay:
+                bias = true_values[-self.biasDelay] - true_values[-1]
+                noise = self.get_noise(true_value=true_values[-self.biasDelay], n=self.surveySize)
+            else:
+                bias = 0
+
         else:
-            return None
+            noise = self.get_noise(true_value=true_values[-1], n=self.surveySize)
+
+        return min(max(true_values[-1] + bias + noise, 0), 1)
 
     def get_noise(self, true_value, n):
 
@@ -54,24 +51,19 @@ class ErrorModel:
 
 
 class FeatureEngineering:
-    def __init__(self, dir_of_trajs, weeks_of_pred_period, weeks_to_predict,
-                 hosp_thresholds, n_of_trajs_used=None):
+    def __init__(self, dir_of_trajs, week_of_prediction_in_fall, pred_period, hosp_threshold):
         """ create the dataset needed to develop the predictive models
         :param dir_of_trajs: (string) the name of directory where trajectories are located
-        :param weeks_of_pred_period: (tuple) (y0, y1) weeks when the prediction period starts and ends
-        :weeks_to_predict: (int) number of weeks to predict in the future
-        :param hosp_thresholds: (list) of thresholds for hospitalization capacity
-        :param n_of_trajs_used: (None or int) number of trajectories used to build the dataset
-            (if None, all trajectories are used)
+        :param week_of_prediction_in_fall: (int) a positive int for number of weeks into fall and
+                                                 a negative int for number of weeks before the peak
+        :param pred_period: (tuple) (y0, y1) time (in year) when the prediction period starts and ends
+        :param hosp_threshold: threshold of hospitalization capacity
         """
         self.directoryName = dir_of_trajs
-        self.weeksOfPredictionPeriod = weeks_of_pred_period
-        self.weeksToPredict = weeks_to_predict
-        self.hospThresholds = hosp_thresholds
-        if n_of_trajs_used is None:
-            self.namesOfTrajFiles = os.listdir(dir_of_trajs)
-        else:
-            self.namesOfTrajFiles = os.listdir(dir_of_trajs)[:n_of_trajs_used]
+        self.weekOfPredInFall = week_of_prediction_in_fall
+        self.predictionPeriodWeek = (round(pred_period[0]*52, 0), round(pred_period[1]*52, 0))
+        self.hospThreshold = hosp_threshold
+        self.namesOfTrajFiles = os.listdir(dir_of_trajs)
 
     def pre_process(self, info_of_incd_fs, info_of_prev_fs, info_of_parameter_fs, output_file, report_corr=True):
         """
@@ -92,12 +84,9 @@ class FeatureEngineering:
         col_labels.extend(info_of_parameter_fs)
         # print feature names
         write_csv(rows=[[c] for c in col_labels],
-                  file_name='outputs/prediction_datasets_{}_weeks/features.csv'.format(self.weeksToPredict))
+                  file_name='outputs/prediction_datasets/features.csv')
 
-        # add columns for outcomes
-        col_labels.append('Max ' + HOSP_OCCUPANCY_IN_TRAJ_FILE)
-        for t in self.hospThresholds:
-            col_labels.append(get_outcome_label(threshold=t))
+        col_labels.extend(OUTCOMES_IN_DATASET)
 
         # read dataset of the parameter features
         param_df = pd.read_csv('outputs/summary/parameter_values.csv')
@@ -117,13 +106,17 @@ class FeatureEngineering:
             if_hosp_threshold_passed, hosp_max, peak_week = \
                 self._get_if_threshold_passed_and_max_and_week_of_peak(df=df)
 
+            # find the time when feature values should be collected
+            if self.weekOfPredInFall < 0:
+                pred_week = peak_week + self.weekOfPredInFall
+            else:
+                pred_week = self.predictionPeriodWeek[0]
+
             # read values of incidence and prevalence features for this trajectory
-            incd_fs = self._get_feature_values(
-                df=df, week=self.weeksOfPredictionPeriod[0],
-                info_of_features=info_of_incd_fs, incd_or_prev='incd')
-            prev_fs = self._get_feature_values(
-                df=df, week=self.weeksOfPredictionPeriod[0],
-                info_of_features=info_of_prev_fs, incd_or_prev='prev')
+            incd_fs = self._get_feature_values(df=df, week=pred_week,
+                                               info_of_features=info_of_incd_fs, incd_or_prev='incd')
+            prev_fs = self._get_feature_values(df=df, week=pred_week,
+                                               info_of_features=info_of_prev_fs, incd_or_prev='prev')
 
             # make a row of feature values
             # incidence features, prevalence features
@@ -132,8 +125,7 @@ class FeatureEngineering:
             for col in param_cols:
                 row.append(col[i])
             # max hospital rate and whether surpass capacity
-            row.append(hosp_max)
-            row.extend(if_hosp_threshold_passed)
+            row.extend([hosp_max, if_hosp_threshold_passed])
 
             # store this row of feature values
             all_feature_values.append(row)
@@ -143,7 +135,10 @@ class FeatureEngineering:
                           columns=col_labels)
 
         # find directoy
-        output_dir = Path('outputs/prediction_datasets_{}_weeks/'.format(self.weeksToPredict))
+        if self.weekOfPredInFall < 0:
+            output_dir = Path('outputs/prediction_datasets/time_to_peak/')
+        else:
+            output_dir = Path('outputs/prediction_datasets/week_into_fall/')
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -152,7 +147,7 @@ class FeatureEngineering:
 
         # report correlations
         if report_corr:
-            report_corrs(df=df, outcomes=OUTCOME_NAME_IN_DATASET,
+            report_corrs(df=df, outcomes=OUTCOMES_IN_DATASET,
                          csv_file_name=output_dir / 'corrs-{}'.format(output_file))
 
     def _get_if_threshold_passed_and_max_and_week_of_peak(self, df):
@@ -163,28 +158,27 @@ class FeatureEngineering:
         obs_times = df['Observation Time']
         obs_weeks = df['Observation Period']
         # hosp_rates = df['Obs: New hospitalization rate']
-        hosp_occu_rates = df[HOSP_OCCUPANCY_IN_TRAJ_FILE]
+        hosp_rates = df[HOSP_OCCUPANCY_IN_TRAJ_FILE]
 
         # get maximum hospitalization rate during the prediction period
         maximum = 0
-        week_of_peak = None
-        for pair in zip(obs_times, obs_weeks, hosp_occu_rates):
-            if self.weeksOfPredictionPeriod[0] <= pair[1] < self.weeksOfPredictionPeriod[1]:
+        week = None
+        for pair in zip(obs_times, obs_weeks, hosp_rates):
+            if self.predictionPeriodWeek[0] <= pair[1] <= self.predictionPeriodWeek[1]:
                 if pair[2] > maximum:
-                    week_of_peak = pair[1]
+                    week = pair[1]
                     maximum = pair[2]
             # exit loop if prediction period has passed
-            if pair[1] > self.weeksOfPredictionPeriod[1]:
+            if pair[1] > self.predictionPeriodWeek[1]:
                 break
 
         # decide if surpass the hospitalization threshold
         # 0 if yes, 1 if not
-        if_surpass_thresholds = [1] * len(self.hospThresholds)
-        for i, t in enumerate(self.hospThresholds):
-            if maximum * 100000 > t:
-                if_surpass_thresholds[i] = 0
+        if_surpass_threshold = 1
+        if maximum > self.hospThreshold:
+            if_surpass_threshold = 0
 
-        return if_surpass_thresholds, maximum, week_of_peak
+        return if_surpass_threshold, maximum, week
 
     @staticmethod
     def _get_feature_values(df, week, info_of_features, incd_or_prev):
@@ -197,7 +191,7 @@ class FeatureEngineering:
         :return: list of values for features
         """
 
-        err_model = None  # error model
+        err_model = None # error model
         f_values = []   # feature values
         for info in info_of_features:
             # multiplier to multiply the value of this column by
@@ -226,7 +220,7 @@ class FeatureEngineering:
             if incd_or_prev == 'incd':
                 for pair in zip(df['Observation Period'], col):
                     if not np.isnan(pair[1]):
-                        if pair[0] < week:
+                        if pair[0] <= week:
                             true_values.append(pair[1]*multiplier)
                             if err_model is None:
                                 observed_values.append(true_values[-1])
@@ -264,10 +258,7 @@ class FeatureEngineering:
                             # get the slope
                             x = np.arange(0, v[1])
                             y = observed_values[-v[1]:]
-                            if None in y:
-                                slope = 0
-                            else:
-                                slope = np.polyfit(x, y, deg=1)[0]
+                            slope = np.polyfit(x, y, deg=1)[0]
                             f_values.append(slope)
                         else:
                             raise ValueError('Invalid.')
@@ -320,7 +311,7 @@ def report_corrs(df, outcomes, csv_file_name):
                 if f_name != o:
                     # correlation and p-value
                     corr, p = pearsonr(df[f_name], y)
-                    row.extend([round(corr, 3), round(p, 3)])
+                    row.extend([corr, p])
             rows.append(row)
 
     df = pd.DataFrame(data=rows,

@@ -1,67 +1,83 @@
 import pandas as pd
-from deampy.in_out_functions import write_csv
 
 import covid_prediction.cross_validation as CV
-from covid_prediction.prediction_models import DecisionTree
-from definitions import ROOT_DIR, get_outcome_label, SCENARIOS, FILL_TREE
+from definitions import ROOT_DIR, get_dataset_labels, get_short_outcome
 
 
-class SummaryOfTreePerformance:
+def get_neural_net_best_spec(outcome_name, week, model_spec, noise_coeff, bias_delay,
+                             list_of_alphas, feature_selection, if_standardize,
+                             cv_fold, if_parallel=False):
+    """
+    :param outcome_name: (string) 'Maximum hospitalization rate' or 'If hospitalization threshold passed'
+    :param week: (int) week when the predictions should be made
+    :param model_spec: (ModelSpec) model specifications
+    :param noise_coeff: (None or integer)
+    :param list_of_alphas: (list) of regularization penalties
+    :param feature_selection: (string) feature selection method
+    :param if_standardize: (bool) set True to regularize features
+    :param cv_fold: (int) number of cross validation folds
+    :param if_parallel: (bool) set True to run code in parallel
+    :return: (ModelSpec) the optimal model specification based on R2 score
+    """
 
-    def __init__(self):
-        # make prediction at different weeks
-        self.rows = [['Model', 'Threshold', 'CV-Formatted PI']] # 'CV-Score', 'CV-PI',
-        for key, value in SCENARIOS.items():
-            self.rows[0].extend(['Acc-' + value, 'Sen-' + value, 'Spe-' + value])
+    # read dataset
+    label = get_dataset_labels(
+        week=week, noise_coeff=noise_coeff, bias_delay=bias_delay)
+    df = pd.read_csv('{}/outputs/prediction_datasets/time_to_peak/data-{}.csv'.format(ROOT_DIR, label))
 
-    def add(self, model_name, hosp_occu_thresholds, best_spec_and_validation_performance, digits):
+    # use all features if no feature name is provided
+    if model_spec.features is None:
+        # feature names (all columns are considered)
+        model_spec.features = df.columns.tolist()
+        model_spec.features.remove('Maximum hospitalization rate')
+        model_spec.features.remove('If hospitalization threshold passed')
 
-        for t in hosp_occu_thresholds:
+    # number of features
+    print('Number of features:', len(model_spec.features))
+    # randomize rows (since the dataset is ordered based on the likelihood weights)
+    df = df.sample(frac=1, random_state=1)
 
-            # best specification and performance
-            best_spec, performance = best_spec_and_validation_performance[str(t)]
+    # scoring and outcome for filenames
+    if outcome_name == 'Maximum hospitalization rate':
+        scoring = None  # use default which is R2 score
+        if_outcome_binary = False
+    elif outcome_name == 'If hospitalization threshold passed':
+        scoring = 'roc_auc'
+        if_outcome_binary = True
+    else:
+        raise ValueError('Invalid outcome to predict.')
+    short_outcome = get_short_outcome(outcome_name)
 
-            # store results
-            result = [model_name,
-                      t,
-                      # best_spec.meanScore,
-                      # best_spec.PI,
-                      None if best_spec is None else best_spec.get_formatted_mean_and_interval(deci=digits)]
-            for p in performance:
-                result.extend([
-                    round(p.accuracy, digits),
-                    None if p.sen is None else round(p.sen, digits),
-                    None if p.spe is None else round(p.spe, digits)
-                ])
+    # find the best specification
+    cv = CV.NeuralNetParameterOptimizer(df=df, feature_names=model_spec.features,
+                                        outcome_name=outcome_name, if_outcome_binary=if_outcome_binary,
+                                        list_of_n_features_wanted=model_spec.listNumOfFeaturesWanted,
+                                        list_of_alphas=list_of_alphas,
+                                        list_of_n_neurons=model_spec.listNumOfNeurons,
+                                        feature_selection_method=feature_selection,
+                                        cv_fold=cv_fold,
+                                        scoring=scoring,
+                                        if_standardize=if_standardize)
 
-            self.rows.append(result)
+    best_spec = cv.find_best_parameters(
+        run_in_parallel=if_parallel,
+        save_to_file_performance=ROOT_DIR + '/outputs/prediction_summary/neu_net/cv/eval-predicting {}-{}-{}.csv'
+            .format(short_outcome, model_spec.name, label),
+        save_to_file_features=ROOT_DIR + '/outputs/prediction_summary/neu_net/features/features-predicting {}-{}-{}.csv'
+            .format(short_outcome, model_spec.name, label)
+    )
 
-    def print(self, file_name):
-
-        # print summary of results
-        write_csv(rows=self.rows,
-                  file_name=file_name)
+    return best_spec
 
 
-def optimize_and_eval_dec_tree(
-        model_spec,
-        hosp_occu_thresholds,
-        weeks_to_predict,
-        list_of_ccp_alphas=None,
-        optimal_ccp_alpha=None,
-        error_tolerance=0.01,
-        cv_fold=10,
-        if_parallel=False,
-        shorten_feature_names=None):
+def optimize_and_eval_dec_tree(model_spec, outcome_name, list_of_max_depths, list_of_ccp_alphas,
+                               feature_selection, cv_fold, if_parallel=False, shorten_feature_names=None):
     """
     :param model_spec: (ModelSpec) model specifications
-    :param hosp_occu_thresholds: (list) of thresholds for hospital occupancy
-    :param weeks_to_predict: (int) number of weeks to predict in the future
+    :param outcome_name: (string) outcome to predict 
+    :param list_of_max_depths: (list) of maximum depths
     :param list_of_ccp_alphas: (list) of ccp alphas
-    :param optimal_ccp_alpha: (float) if None, the optimal value of alpha will be determined, otherwise the provided
-        value will be used to train and evaluate the tree
-    :param error_tolerance: (float) a pruner tree will be selected if it's accuracy is less
-        that the accuracy of the optimal tree by this amount
+    :param feature_selection: (string) feature selection method
     :param cv_fold: (int) number of cross validation folds
     :param if_parallel: (bool) set True to run code in parallel
     :param shorten_feature_names: (dictionary) with keys as features names in the dataset and
@@ -69,78 +85,53 @@ def optimize_and_eval_dec_tree(
     :return: (best specification, the final model performance)
     """
 
-    # read training dataset
-    df = pd.read_csv(ROOT_DIR+'/outputs/prediction_datasets_{}_weeks/data-training.csv'.format(weeks_to_predict))
-    # randomize rows (since the dataset might have some order)
-    df_training = df.sample(frac=1, random_state=1)
+    # number of features
+    print('Number of features:', len(model_spec.features))
 
-    # read validation datasets
-    validation_dfs = [None] * len(SCENARIOS)
-    i = 0
-    for key, value in SCENARIOS.items():
-        validation_dfs[i] = pd.read_csv(
-            ROOT_DIR+'/outputs/prediction_datasets_{}_weeks/data-validating {}.csv'.format(weeks_to_predict, value))
-        i += 1
+    # read dataset
+    df = pd.read_csv('{}/outputs/prediction_datasets/week_into_fall/combined_data.csv'.format(ROOT_DIR))
+    # randomize rows (since the dataset is ordered based on the likelihood weights)
+    df = df.sample(frac=1, random_state=1)
 
-    # for all thresholds
-    validation_performance = {}
-    for t in hosp_occu_thresholds:
+    # number of rows
+    n_rows = df.shape[0]
+    df_training = df.head(int(n_rows*0.8))
+    df_validation = df.tail(n_rows - int(n_rows*0.8))
 
-        # if the optimal value of ccp alpha is not provided
-        if optimal_ccp_alpha is None:
-            # find the best specification
-            cv = CV.DecTreeParameterOptimizer(
-                df=df_training,
-                feature_names=model_spec.features,
-                outcome_name=get_outcome_label(threshold=t),
-                list_of_ccp_alphas=list_of_ccp_alphas,
-                error_tolerance=error_tolerance,
-                cv_fold=cv_fold,
-                scoring='accuracy')
+    # find the best specification
+    cv = CV.DecTreeParameterOptimizer(
+        df=df_training,
+        feature_names=model_spec.features,
+        outcome_name=outcome_name,
+        if_outcome_binary=True,
+        list_of_n_features_wanted=None,
+        list_of_max_depths=list_of_max_depths,
+        list_of_ccp_alphas=list_of_ccp_alphas,
+        feature_selection_method=feature_selection,
+        cv_fold=cv_fold,
+        scoring='accuracy')
 
-            best_spec = cv.find_best_parameters(
-                run_in_parallel=if_parallel,
-                save_to_file_performance=ROOT_DIR
-                                         + '/outputs/prediction_summary_{}_weeks/dec_tree/cv/cv-{}-{}.csv'
-                                             .format(weeks_to_predict, model_spec.name, t),
-                save_to_file_features=ROOT_DIR
-                                      + '/outputs/prediction_summary_{}_weeks/dec_tree/features/features-{}-{}.csv'
-                                          .format(weeks_to_predict, model_spec.name, t)
-            )
-            feature_names = best_spec.selectedFeatures
-            ccp_alpha = best_spec.ccpAlpha
+    best_spec = cv.find_best_parameters(
+        run_in_parallel=if_parallel,
+        save_to_file_performance=ROOT_DIR + '/outputs/prediction_summary/dec_tree/cv/eval-{}.csv'
+            .format(model_spec.name),
+        save_to_file_features=ROOT_DIR + '/outputs/prediction_summary/dec_tree/features/features-{}.csv'
+            .format(model_spec.name)
+    )
 
-        else:
-            best_spec = None
-            ccp_alpha = optimal_ccp_alpha
-            feature_names = model_spec.features
+    # train the model model and evaluate it on the validation dataset
+    final_model = cv.evaluate_tree_on_validation_set(
+        df_training=df_training,
+        df_validation=df_validation,
+        selected_features=best_spec.selectedFeatures,
+        y_name=outcome_name,
+        max_depth=best_spec.maxDepth,
+        ccp_alpha=best_spec.ccpAlpha)
 
-        # make a final decision tree model
-        model = DecisionTree(df=df_training,
-                             feature_names=feature_names,
-                             y_name=get_outcome_label(threshold=t))
+    # save the best tree
+    final_model.plot_decision_path(
+        file_name=ROOT_DIR + '/outputs/figures/trees/model-{}.png'.format(model_spec.name),
+        simple=True, class_names=['Yes', 'No'],
+        precision=2, shorten_feature_names=shorten_feature_names)
 
-        # train the model
-        model.train(ccp_alpha=ccp_alpha)
-
-        # validate the final model
-        model.validate(validation_dfs=validation_dfs)
-
-        # store summary of validation performance
-        validation_performance[str(t)] = (best_spec, model.validationPerformanceSummaries)
-
-        # save the best tree
-        if optimal_ccp_alpha is None:
-            filename = ROOT_DIR + '/outputs/figures/trees_{}_weeks/{}-{}.png'.format(
-                weeks_to_predict, model_spec.name, t)
-        else:
-            filename = ROOT_DIR + '/outputs/figures/trees_{}_weeks/{}-{}-{}.png'.format(
-                weeks_to_predict, model_spec.name, t, optimal_ccp_alpha)
-
-        model.plot_decision_path(
-            file_name=filename,
-            simple=True, class_names=['Yes', 'No'],
-            precision=2, shorten_feature_names=shorten_feature_names, filled=FILL_TREE)
-
-    return validation_performance
-
+    return best_spec, final_model.performanceTest
