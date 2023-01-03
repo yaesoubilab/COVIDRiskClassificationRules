@@ -1,0 +1,74 @@
+Obs: Incidence rate,Incidence rate (last wk)
+Obs: Incidence rate-ave-2wk,Incidence rate (2-wk average)
+Obs: Incidence rate-slope-4wk,Incidence rate (4-wk change)
+Obs: New hospitalization rate,New hospitalization rate (last wk)
+Obs: New hospitalization rate-ave-2wk,New hospitalization rate (2-wk average)
+Obs: New hospitalization rate-slope-4wk,New hospitalization rate (4-wk change)
+Obs: % of new hospitalizations that are vaccinated,% vaccinated among new hospitalizations (last wk)
+Obs: % of new hospitalizations that are vaccinated-ave-2wk,% vaccinated among new hospitalizations (2-wk average)
+Obs: % of new hospitalizations that are vaccinated-slope-4wk,% vaccinated among new hospitalizations (4-wk change)
+Obs: % of incidence due to novel variant,% novel variant among new infections (last wk)
+Obs: % of incidence due to novel variant-ave-2wk,% novel variant among new infections (2-wk average)
+Obs: % of incidence due to novel variant-slope-4wk,% novel variant among new infections (4-wk change)
+Obs: % of new hospitalizations due to novel variant,% novel variant among new hospitalizations (last wk)
+Obs: % of new hospitalizations due to novel variant-ave-2wk,% novel variant among new hospitalizations (2-wk average)
+Obs: % of new hospitalizations due to novel variant-slope-4wk,% novel variant among new hospitalizations (4-wk change)
+Obs: % of new hospitalizations due to Novel-V,% of new hospitalizations that are vaccinated and due to novel variant (last wk)
+Obs: % of new hospitalizations due to Novel-V-ave-2wk,% of new hospitalizations that are vaccinated and due to novel variant (2-wk average)
+Obs: % of new hospitalizations due to Novel-V-slope-4wk,% of new hospitalizations that are vaccinated and due to novel variant (4-wk change)
+Obs: Cumulative hospitalization rate,Cumulative hospitalization rate
+Obs: Cumulative vaccination rate,Cumulative vaccination rate
+Obs: Prevalence susceptible,% of population susceptible
+R0,R0
+Duration of infectiousness-dominant,Duration of infectiousness for dominant strain 
+Prob novel strain params-0,Prob that an imported case is infected with novel variant (b)
+Prob novel strain params-1,Prob that an imported case is infected with novel variant (t_mid)
+Prob novel strain params-2,Prob that an imported case is infected with novel variant (max)
+Ratio infectiousness duration of novel to dominant,Ratio of duration of infection with novel to dominant
+Duration of vaccine immunity,Duration of vaccine immunity
+Ratio of duration of immunity from infection+vaccination to infection,Relative increase in the duration of infection-induced immunity after vaccination
+Vaccine effectiveness against infection-0,Vaccine effectiveness against infection with dominant variant
+Vaccine effectiveness against infection-1,Vaccine effectiveness against infection with novel variant
+Ratio transmissibility of novel to dominant,Ratio of transmisibility of novel to dominant
+Vaccine effectiveness in reducing infectiousness-0,Vaccine effectiveness in reducing infectionness of dominant strain
+Vaccine effectiveness in reducing infectiousness-1,Vaccine effectiveness in reducing infectionness of novel variant
+Ratio prob of hospitalization of novel to dominant,Ratio of the probabiliy of hospitalization for novel to dominant
+Vaccine effectiveness against hospitalization-0,Vaccine effectiveness against hospitalization for dominant strain
+Vaccine effectiveness against hospitalization-1,Vaccine effectiveness against hospitalization for novel variant
+Prob Hosp for 18-29,Prob. of hospitalization if infected for age group 18-29
+Relative prob hosp by age-0,Relative prob. of hospitalization for age group 0-4
+Relative prob hosp by age-1,Relative prob. of hospitalization for age group 5-12
+Relative prob hosp by age-2,Relative prob. of hospitalization for age group 13-17
+Relative prob hosp by age-4,Relative prob. of hospitalization for age group 30-49
+Relative prob hosp by age-5,Relative prob. of hospitalization for age group 50-64
+Relative prob hosp by age-6,Relative prob. of hospitalization for age group 65-74
+Relative prob hosp by age-7,Relative prob. of hospitalization for age group 75+
+Duration of E-0,Duration of E-0
+Duration of E-1,Duration of E-1
+Duration of E-2,Duration of E-2
+Duration of E-3,Duration of E-3
+Duration of I-0,Duration of I-0
+Duration of I-1,Duration of I-1
+Duration of I-2,Duration of I-2
+Duration of I-3,Duration of I-3
+Duration of Hosp-0,Duration of Hosp-0
+Duration of Hosp-1,Duration of Hosp-1
+Duration of Hosp-2,Duration of Hosp-2
+Duration of Hosp-3,Duration of Hosp-3
+Duration of R-0,Duration of immunity after infection with dominant strain
+Duration of R-1,Duration of immunity after infection with dominant strain if vaccinated
+Duration of R-2,Duration of immunity after infection with novel variant
+Duration of R-3,Duration of immunity after infection with novel variant if vaccinated
+Vaccination rate params-0,Vaccination rate params-0
+Vaccination rate params-1,Vaccination rate params-1
+Vaccination rate params-3,Vaccination rate params-3
+Vaccination rate t_min by age-1,Vaccination rate t_min by age-1
+Vaccination rate t_min by age-2,Vaccination rate t_min by age-2
+Vaccination rate t_min by age-3,Vaccination rate t_min by age-3
+Vaccination rate t_min by age-4,Vaccination rate t_min by age-4
+Vaccination rate t_min by age-5,Vaccination rate t_min by age-5
+Vaccination rate t_min by age-6,Vaccination rate t_min by age-6
+Vaccination rate t_min by age-7,Vaccination rate t_min by age-7
+PD Y1 thresholds-0,Threshold to trigger physical distancing measures
+PD Y1 thresholds-1,Threshold to lift physical distancing measures
+Change in contacts - PD Y1,% change in contact rate during phystical distancing measures
